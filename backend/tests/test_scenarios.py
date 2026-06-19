@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from gee_service import scenario_summary, select_optimal_scenario
+from gee_service import list_areas, scenario_summary, select_optimal_scenario
 
 
 class ScenarioTests(unittest.TestCase):
@@ -25,6 +25,14 @@ class ScenarioTests(unittest.TestCase):
     def test_empty_optimizer_is_stable(self) -> None:
         optimal = select_optimal_scenario([])
         self.assertEqual(optimal["key"], "combined")
+
+    def test_area_catalog_contains_distinct_city_bounds(self) -> None:
+        areas = list_areas()
+        identifiers = {area["id"] for area in areas}
+        bounds = {tuple(area["bbox"]) for area in areas}
+        self.assertIn("mumbai", identifiers)
+        self.assertIn("delhi", identifiers)
+        self.assertEqual(len(areas), len(bounds))
 
 
 if __name__ == "__main__":

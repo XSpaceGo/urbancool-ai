@@ -10,7 +10,7 @@
 html { scroll-behavior: smooth; }
 html, body, #root { max-width: 100%; overflow-x: hidden; }
 body { margin: 0; min-width: 320px; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 h1, h2, p { margin: 0; }
 
@@ -106,6 +106,8 @@ h1 { color: #172126; font-size: 2rem; line-height: 1.15; }
   padding: 0 10px;
 }
 .date-controls input { background: transparent; border: 0; color: #263438; min-width: 125px; outline: 0; }
+.date-controls select { background: transparent; border: 0; color: #263438; max-width: 190px; min-width: 170px; outline: 0; }
+.area-control { border-color: #aebfba !important; }
 .date-controls button { background: #d84a34; border-color: #d84a34; color: #ffffff; cursor: pointer; font-weight: 800; padding: 0 15px; }
 .date-controls button:hover { background: #bd3927; }
 .date-controls button:disabled { cursor: progress; opacity: 0.72; }
@@ -240,6 +242,7 @@ tbody tr:hover { background: #f6f9f8; }
   .date-controls { align-items: stretch; flex-direction: column; }
   .date-controls label, .date-controls button { width: 100%; }
   .date-controls input { flex: 1; }
+  .date-controls select { flex: 1; max-width: none; }
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .provenance-bar { grid-template-columns: 1fr; }
   .provenance-bar > div { border-bottom: 1px solid #45565a; border-right: 0; }

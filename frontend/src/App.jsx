@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Activity, BarChart3, CalendarDays, Grid3X3, Map, Play, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
-import { downloadReport, runAnalysis } from "./api";
+import { Activity, BarChart3, CalendarDays, Grid3X3, Map, MapPin, Play, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { downloadReport, getAreas, runAnalysis } from "./api";
 import DriverChart from "./components/DriverChart";
 import HotspotTable from "./components/HotspotTable";
 import MapView from "./components/MapView";
@@ -13,6 +13,8 @@ import "./styles.css";
 export default function App() {
   const [start, setStart] = useState("2024-03-01");
   const [end, setEnd] = useState("2024-05-31");
+  const [area, setArea] = useState("mumbai");
+  const [areas, setAreas] = useState([{ id: "mumbai", name: "Mumbai", state: "Maharashtra" }]);
   const [analysis, setAnalysis] = useState(null);
   const [activeLayer, setActiveLayer] = useState("heat_risk");
   const [loading, setLoading] = useState(false);
@@ -23,7 +25,7 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const data = await runAnalysis(start, end);
+      const data = await runAnalysis(start, end, area);
       setAnalysis(data);
     } catch (err) {
       setError(err.message);
@@ -49,7 +51,11 @@ export default function App() {
       setLoading(true);
       setError("");
       try {
-        const data = await runAnalysis("2024-03-01", "2024-05-31");
+        const [areaOptions, data] = await Promise.all([
+          getAreas(),
+          runAnalysis("2024-03-01", "2024-05-31", "mumbai"),
+        ]);
+        setAreas(areaOptions);
         setAnalysis(data);
       } catch (err) {
         setError(err.message);
@@ -78,7 +84,7 @@ export default function App() {
           <div className="brand-copy">
             <div className="brand-lockup">
               <span>CoolGrid</span>
-              <strong>Mumbai</strong>
+              <strong>Urban</strong>
             </div>
             <p>Urban heat decision intelligence</p>
           </div>
@@ -89,9 +95,15 @@ export default function App() {
           <div>
             <p className="eyebrow">City-scale intervention planning</p>
             <h1>Heat Mitigation Command Center</h1>
-            <p className="page-summary">Locate thermal stress, explain its drivers, and prioritize cooling investments across Mumbai.</p>
+            <p className="page-summary">Locate thermal stress, explain its drivers, and prioritize cooling investments for the selected urban area.</p>
           </div>
           <div className="date-controls">
+            <label className="area-control" aria-label="Analysis area">
+              <MapPin size={16} />
+              <select value={area} onChange={(event) => setArea(event.target.value)}>
+                {areas.map((option) => <option value={option.id} key={option.id}>{option.name}, {option.state}</option>)}
+              </select>
+            </label>
             <label aria-label="Start date">
               <CalendarDays size={16} />
               <input value={start} onChange={(event) => setStart(event.target.value)} type="date" />
@@ -124,6 +136,8 @@ export default function App() {
           onLayerChange={setActiveLayer}
           zones={analysis?.top_zones}
           loading={loading}
+          aoi={analysis?.aoi}
+          areaName={analysis?.area?.name}
         />
         <aside className="side-column">
           <DriverChart
@@ -155,7 +169,7 @@ export default function App() {
         <HotspotTable zones={analysis?.top_zones} />
 
         <footer className="product-footer">
-          <span>CoolGrid Mumbai</span>
+          <span>CoolGrid Urban</span>
           <p>Decision-support estimates derived from Landsat, ERA5 Daily, ESA WorldCover, and physics-informed machine learning.</p>
         </footer>
       </main>

@@ -1,12 +1,21 @@
 import { Layers, LoaderCircle, MapPin } from "lucide-react";
-import { MapContainer, TileLayer, Rectangle, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Rectangle, Marker, Popup, useMap } from "react-leaflet";
+import { useEffect } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-const bounds = [
+const defaultBounds = [
   [18.85, 72.75],
   [19.3, 73.05],
 ];
+
+function FitBounds({ bounds }) {
+  const map = useMap();
+  useEffect(() => {
+    map.fitBounds(bounds, { padding: [18, 18] });
+  }, [bounds, map]);
+  return null;
+}
 
 const layerOptions = [
   { key: "lst", label: "Heat Hotspot LST" },
@@ -39,8 +48,11 @@ const legends = {
   blue_green_reduction: ["0 C", "Blue-green effect", "1.75 C"],
 };
 
-export default function MapView({ tiles, activeLayer, onLayerChange, zones, loading }) {
+export default function MapView({ tiles, activeLayer, onLayerChange, zones, loading, aoi, areaName }) {
   const tileUrl = tiles?.[activeLayer];
+  const bounds = aoi
+    ? [[aoi[1], aoi[0]], [aoi[3], aoi[2]]]
+    : defaultBounds;
 
   return (
     <section className="map-section">
@@ -64,6 +76,7 @@ export default function MapView({ tiles, activeLayer, onLayerChange, zones, load
       </div>
 
       <MapContainer bounds={bounds} scrollWheelZoom className="map">
+        <FitBounds bounds={bounds} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -98,7 +111,7 @@ export default function MapView({ tiles, activeLayer, onLayerChange, zones, load
 
       <div className="map-footnote">
         <MapPin size={16} />
-        Mumbai AOI: 72.75, 18.85, 73.05, 19.30
+        {areaName || "Selected area"} AOI: {aoi ? aoi.join(", ") : "loading"}
       </div>
     </section>
   );

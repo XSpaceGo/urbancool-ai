@@ -13,8 +13,12 @@ export function healthCheck() {
   return request("/health");
 }
 
-export function runAnalysis(start = "2024-03-01", end = "2024-05-31") {
-  return request(`/analyze?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+export function getAreas() {
+  return request("/areas");
+}
+
+export function runAnalysis(start = "2024-03-01", end = "2024-05-31", area = "mumbai") {
+  return request(`/analyze?area=${encodeURIComponent(area)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
 }
 
 export function getTileLayer(layer) {
@@ -30,7 +34,7 @@ export async function downloadReport() {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "urbancool-mumbai-report.md";
+  anchor.download = "coolgrid-urban-decision-brief.md";
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();

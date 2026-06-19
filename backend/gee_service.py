@@ -11,7 +11,17 @@ from ml_model import train_lst_model
 
 load_dotenv()
 
-MUMBAI_BBOX = [72.75, 18.85, 73.05, 19.30]
+AOI_PRESETS = {
+    "mumbai": {"name": "Mumbai", "state": "Maharashtra", "bbox": [72.75, 18.85, 73.05, 19.30]},
+    "delhi": {"name": "Delhi NCR", "state": "Delhi", "bbox": [76.84, 28.40, 77.35, 28.90]},
+    "bengaluru": {"name": "Bengaluru", "state": "Karnataka", "bbox": [77.42, 12.80, 77.78, 13.15]},
+    "chennai": {"name": "Chennai", "state": "Tamil Nadu", "bbox": [80.10, 12.90, 80.32, 13.20]},
+    "hyderabad": {"name": "Hyderabad", "state": "Telangana", "bbox": [78.25, 17.20, 78.65, 17.60]},
+    "kolkata": {"name": "Kolkata", "state": "West Bengal", "bbox": [88.20, 22.40, 88.55, 22.75]},
+    "pune": {"name": "Pune", "state": "Maharashtra", "bbox": [73.65, 18.35, 74.05, 18.75]},
+    "ahmedabad": {"name": "Ahmedabad", "state": "Gujarat", "bbox": [72.40, 22.85, 72.75, 23.20]},
+}
+MUMBAI_BBOX = AOI_PRESETS["mumbai"]["bbox"]
 SCALE = 90
 MAX_SAMPLE_POINTS = 900
 
@@ -69,14 +79,27 @@ def initialize_earth_engine() -> None:
     _initialized = True
 
 
+def list_areas() -> list[dict[str, Any]]:
+    return [{"id": key, **value} for key, value in AOI_PRESETS.items()]
+
+
 def analyze_mumbai(start: str, end: str) -> dict[str, Any]:
+    return analyze_area("mumbai", start, end)
+
+
+def analyze_area(area: str, start: str, end: str) -> dict[str, Any]:
+    area_key = area.lower().strip()
+    if area_key not in AOI_PRESETS:
+        raise ValueError(f"Unknown area '{area}'. Use one of: {', '.join(AOI_PRESETS)}")
     initialize_earth_engine()
+    area_config = AOI_PRESETS[area_key]
+    bbox = area_config["bbox"]
     start_date = _parse_date(start)
     end_date = _parse_date(end)
     if end_date <= start_date:
         raise ValueError("end date must be after start date")
 
-    aoi = ee.Geometry.Rectangle(MUMBAI_BBOX)
+    aoi = ee.Geometry.Rectangle(bbox)
     image_bundle = build_analysis_image(aoi, start, end)
     samples = sample_driver_table(image_bundle["drivers"], aoi)
     model_result = train_lst_model(samples)
@@ -86,14 +109,16 @@ def analyze_mumbai(start: str, end: str) -> dict[str, Any]:
     stats = zonal_stats(all_layers, aoi)
     scenarios = scenario_summary(stats)
     optimal_strategy = select_optimal_scenario(scenarios)
-    top_zones = top_intervention_zones(all_layers, aoi)
+    top_zones = top_intervention_zones(all_layers, aoi, area_config["name"])
     tile_urls = build_tile_urls(all_layers)
 
     global _last_context
     _last_context = {
         "start": start,
         "end": end,
-        "aoi": MUMBAI_BBOX,
+        "area_id": area_key,
+        "area_name": area_config["name"],
+        "aoi": bbox,
         "image": all_layers,
         "tile_urls": tile_urls,
         "stats": stats,
@@ -105,7 +130,8 @@ def analyze_mumbai(start: str, end: str) -> dict[str, Any]:
     }
 
     return {
-        "aoi": MUMBAI_BBOX,
+        "area": {"id": area_key, "name": area_config["name"], "state": area_config["state"]},
+        "aoi": bbox,
         "period": {"start": start, "end": end},
         "data_provenance": image_bundle["data_provenance"],
         "stats": stats,
@@ -352,7 +378,7 @@ def zonal_stats(image: ee.Image, aoi: ee.Geometry) -> dict[str, Any]:
     }
 
 
-def top_intervention_zones(image: ee.Image, aoi: ee.Geometry) -> list[dict[str, Any]]:
+def top_intervention_zones(image: ee.Image, aoi: ee.Geometry, area_name: str) -> list[dict[str, Any]]:
     grid = aoi.coveringGrid(proj=ee.Projection("EPSG:4326").atScale(1000), scale=1000)
     zone_image = image.select([
         "LST",
@@ -379,7 +405,7 @@ def top_intervention_zones(image: ee.Image, aoi: ee.Geometry) -> list[dict[str, 
         zones.append(
             {
                 "rank": index,
-                "zone": f"Mumbai Grid {index}",
+                "zone": f"{area_name} Grid {index}",
                 "lat": _round(centroid[1], 5),
                 "lon": _round(centroid[0], 5),
                 "lst": _round(props.get("LST")),
@@ -418,7 +444,7 @@ def build_tile_urls(image: ee.Image) -> dict[str, str]:
 
 def get_tile_layer(layer: str) -> dict[str, str]:
     if _last_context is None:
-        analyze_mumbai("2024-03-01", "2024-05-31")
+        analyze_area("mumbai", "2024-03-01", "2024-05-31")
     assert _last_context is not None
     tile_urls = _last_context["tile_urls"]
     if layer not in tile_urls:
@@ -428,7 +454,7 @@ def get_tile_layer(layer: str) -> dict[str, str]:
 
 def build_report() -> str:
     if _last_context is None:
-        analyze_mumbai("2024-03-01", "2024-05-31")
+        analyze_area("mumbai", "2024-03-01", "2024-05-31")
     assert _last_context is not None
     stats = _last_context["stats"]
     model = _last_context["model"]
@@ -436,7 +462,7 @@ def build_report() -> str:
     scenarios = _last_context["scenarios"]
     optimal = _last_context["optimal_strategy"]
     lines = [
-        "# CoolGrid Mumbai - Urban Heat Decision Brief",
+        f"# CoolGrid Urban - {_last_context['area_name']} Heat Decision Brief",
         "",
         "## Executive Decision",
         f"The optimized strategy is **{optimal['label']}**, with an estimated mean reduction of **{optimal.get('mean_reduction_c', 0)} C** across modeled intervention surfaces.",
@@ -444,7 +470,8 @@ def build_report() -> str:
         "",
         "## Analysis Scope",
         f"Analysis period: {_last_context['start']} to {_last_context['end']}",
-        f"AOI bounding box: {MUMBAI_BBOX}",
+        f"Selected area: {_last_context['area_name']}",
+        f"AOI bounding box: {_last_context['aoi']}",
         f"Meteorology: {_last_context.get('data_provenance', {}).get('meteorology_period', 'ECMWF/ERA5/DAILY')}",
         "",
         "## Key Statistics",

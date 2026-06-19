@@ -1,12 +1,12 @@
-# CoolGrid Mumbai
+# CoolGrid Urban
 
-GeoAI-Based Urban Heat Mitigation and Cooling Strategy Optimizer for Mumbai.
+GeoAI-Based Urban Heat Mitigation and Cooling Strategy Optimizer with selectable Indian urban areas.
 
-This is a full-stack hackathon MVP that uses Google Earth Engine as the data engine, FastAPI for analysis, and React + Leaflet for the dashboard. It does not require manual dataset downloads, labels, or training masks. The app builds its own driver table by sampling Earth Engine rasters inside the Mumbai AOI.
+This is a full-stack hackathon MVP that uses Google Earth Engine as the data engine, FastAPI for analysis, and React + Leaflet for the dashboard. It does not require manual dataset downloads, labels, or training masks. The app builds its own driver table by sampling Earth Engine rasters inside the selected urban AOI.
 
 ## What It Does
 
-- Automatically uses the Mumbai bounding box `[72.75, 18.85, 73.05, 19.30]`.
+- Select Mumbai, Delhi NCR, Bengaluru, Chennai, Hyderabad, Kolkata, Pune, or Ahmedabad from the dashboard.
 - Fetches Landsat 8/9 Collection 2 Level-2 imagery from Earth Engine.
 - Computes NDVI, NDBI, LST in Celsius, built-up intensity, vegetation deficit, heat risk, and cooling priority.
 - Fetches ERA5 daily air temperature, dewpoint, and wind vectors.

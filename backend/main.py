@@ -8,10 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from gee_service import analyze_mumbai, build_report, get_tile_layer, initialize_earth_engine
+from gee_service import analyze_area, build_report, get_tile_layer, initialize_earth_engine, list_areas
 
 app = FastAPI(
-    title="CoolGrid Mumbai API",
+    title="CoolGrid Urban API",
     description="Physics-informed urban heat intelligence and cooling intervention optimization API.",
     version="1.0.0",
 )
@@ -48,17 +48,23 @@ def health(deep: bool = Query(False, description="Verify live Earth Engine conne
 
 @app.get("/analyze")
 def analyze(
+    area: str = Query("mumbai", description="Area preset identifier"),
     start: str = Query("2024-03-01", description="Start date, YYYY-MM-DD"),
     end: str = Query("2024-05-31", description="End date, YYYY-MM-DD"),
 ) -> dict:
     try:
-        return analyze_mumbai(start=start, end=end)
+        return analyze_area(area=area, start=start, end=end)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
+
+
+@app.get("/areas")
+def areas() -> list[dict]:
+    return list_areas()
 
 
 @app.get("/tiles/{layer}")
@@ -80,7 +86,7 @@ def report() -> PlainTextResponse:
         return PlainTextResponse(
             content,
             media_type="text/markdown",
-            headers={"Content-Disposition": "attachment; filename=urbancool-mumbai-report.md"},
+            headers={"Content-Disposition": "attachment; filename=coolgrid-urban-decision-brief.md"},
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
