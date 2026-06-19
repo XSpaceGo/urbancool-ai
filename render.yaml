@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: urbancool-ai-mumbai
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: GEE_PROJECT
+        value: urbancool-mumbai-vk-2026
+      - key: GEE_SERVICE_ACCOUNT
+        sync: false
+      - key: GEE_PRIVATE_KEY_FILE
+        sync: false
+      - key: GEE_PRIVATE_KEY_JSON
+        sync: false
