@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
 from typing import Any
 
@@ -60,12 +61,30 @@ def initialize_earth_engine() -> None:
     private_key_json = os.getenv("GEE_PRIVATE_KEY_JSON")
 
     try:
-        if service_account and (private_key_file or private_key_json):
+        credentials = None
+        if private_key_json:
+            key_data = private_key_json.strip()
+            try:
+                parsed_key = json.loads(key_data)
+            except json.JSONDecodeError:
+                parsed_key = None
+            if parsed_key:
+                service_account = service_account or parsed_key.get("client_email")
+                if isinstance(parsed_key.get("private_key"), str):
+                    parsed_key["private_key"] = parsed_key["private_key"].replace("\\n", "\n")
+                key_data = json.dumps(parsed_key)
+            if not service_account:
+                raise RuntimeError(
+                    "GEE_PRIVATE_KEY_JSON is set, but no service account email was found. "
+                    "Set GEE_SERVICE_ACCOUNT or include client_email in the JSON."
+                )
+            credentials = ee.ServiceAccountCredentials(service_account, key_data=key_data)
+        elif service_account and private_key_file:
             credentials = ee.ServiceAccountCredentials(
                 service_account,
-                key_file=private_key_file or None,
-                key_data=private_key_json or None,
+                key_file=private_key_file,
             )
+        if credentials:
             ee.Initialize(credentials, project=project)
         else:
             ee.Initialize(project=project)
