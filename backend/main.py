@@ -29,7 +29,16 @@ app.add_middleware(
         origin.strip()
         for origin in os.getenv(
             "CORS_ORIGINS",
-            "http://localhost:5173,http://127.0.0.1:5173,https://urbanstaus.vercel.app",
+            ",".join(
+                [
+                    "http://localhost:5173",
+                    "http://127.0.0.1:5173",
+                    "https://urbanstaus.vercel.app",
+                    "https://urbancoolpro.vercel.app",
+                    "https://vijaykanth.com",
+                    "https://www.vijaykanth.com",
+                ]
+            ),
         ).split(",")
         if origin.strip()
     ],
