@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import json
 import os
@@ -50,6 +51,54 @@ _initialized = False
 _last_context: dict[str, Any] | None = None
 
 
+def _is_hosted_runtime() -> bool:
+    return any(
+        os.getenv(name)
+        for name in ("VERCEL", "VERCEL_ENV", "RENDER", "RAILWAY_ENVIRONMENT", "FLY_APP_NAME")
+    ) or os.getenv("APP_ENV", "").lower() in {"production", "prod"}
+
+
+def earth_engine_config_status() -> dict[str, bool]:
+    return {
+        "has_project": bool(os.getenv("GEE_PROJECT")),
+        "has_service_account": bool(os.getenv("GEE_SERVICE_ACCOUNT")),
+        "has_private_key_file": bool(os.getenv("GEE_PRIVATE_KEY_FILE")),
+        "has_private_key_json": bool(os.getenv("GEE_PRIVATE_KEY_JSON")),
+        "has_private_key_json_base64": bool(os.getenv("GEE_PRIVATE_KEY_JSON_BASE64")),
+        "hosted_runtime": _is_hosted_runtime(),
+    }
+
+
+def _load_service_account_key() -> tuple[str | None, str | None]:
+    key_data = os.getenv("GEE_PRIVATE_KEY_JSON", "").strip()
+    key_data_base64 = os.getenv("GEE_PRIVATE_KEY_JSON_BASE64", "").strip()
+
+    if not key_data and key_data_base64:
+        try:
+            key_data = base64.b64decode(key_data_base64).decode("utf-8").strip()
+        except Exception as exc:
+            raise RuntimeError("GEE_PRIVATE_KEY_JSON_BASE64 is not valid base64 JSON.") from exc
+
+    if not key_data:
+        return None, None
+
+    try:
+        parsed_key = json.loads(key_data)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("GEE_PRIVATE_KEY_JSON must be valid service-account JSON.") from exc
+
+    service_account = parsed_key.get("client_email")
+    if not service_account:
+        raise RuntimeError("Service-account JSON is missing client_email.")
+
+    private_key = parsed_key.get("private_key")
+    if not isinstance(private_key, str) or "BEGIN PRIVATE KEY" not in private_key:
+        raise RuntimeError("Service-account JSON is missing a valid private_key.")
+
+    parsed_key["private_key"] = private_key.replace("\\n", "\n")
+    return service_account, json.dumps(parsed_key)
+
+
 def initialize_earth_engine() -> None:
     global _initialized
     if _initialized:
@@ -58,32 +107,26 @@ def initialize_earth_engine() -> None:
     project = os.getenv("GEE_PROJECT") or None
     service_account = os.getenv("GEE_SERVICE_ACCOUNT")
     private_key_file = os.getenv("GEE_PRIVATE_KEY_FILE")
-    private_key_json = os.getenv("GEE_PRIVATE_KEY_JSON")
 
     try:
         credentials = None
-        if private_key_json:
-            key_data = private_key_json.strip()
-            try:
-                parsed_key = json.loads(key_data)
-            except json.JSONDecodeError:
-                parsed_key = None
-            if parsed_key:
-                service_account = service_account or parsed_key.get("client_email")
-                if isinstance(parsed_key.get("private_key"), str):
-                    parsed_key["private_key"] = parsed_key["private_key"].replace("\\n", "\n")
-                key_data = json.dumps(parsed_key)
-            if not service_account:
-                raise RuntimeError(
-                    "GEE_PRIVATE_KEY_JSON is set, but no service account email was found. "
-                    "Set GEE_SERVICE_ACCOUNT or include client_email in the JSON."
-                )
+        json_service_account, key_data = _load_service_account_key()
+        service_account = service_account or json_service_account
+
+        if key_data:
             credentials = ee.ServiceAccountCredentials(service_account, key_data=key_data)
         elif service_account and private_key_file:
             credentials = ee.ServiceAccountCredentials(
                 service_account,
                 key_file=private_key_file,
             )
+        elif _is_hosted_runtime():
+            raise RuntimeError(
+                "Hosted deployment is missing Earth Engine service-account credentials. "
+                "Set GEE_PROJECT and either GEE_PRIVATE_KEY_JSON or GEE_PRIVATE_KEY_JSON_BASE64 "
+                "in the backend Vercel project."
+            )
+
         if credentials:
             ee.Initialize(credentials, project=project)
         else:

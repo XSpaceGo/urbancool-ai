@@ -97,6 +97,12 @@ Hosted deployments can store the complete service-account JSON as a secret inste
 GEE_PRIVATE_KEY_JSON={"type":"service_account",...}
 ```
 
+If your host has trouble with multiline JSON secrets, store the base64-encoded JSON instead:
+
+```text
+GEE_PRIVATE_KEY_JSON_BASE64=base64-encoded-service-account-json
+```
+
 Never commit a password, OAuth credential file, or service-account JSON.
 
 The Google account or service account must be registered for Google Earth Engine access.
@@ -203,7 +209,7 @@ Render deployment:
 
 1. Push this repository to GitHub.
 2. In Render, create a Blueprint from `render.yaml`.
-3. Add `GEE_SERVICE_ACCOUNT` and `GEE_PRIVATE_KEY_JSON` as secret environment values.
+3. Add `GEE_PROJECT` and either `GEE_PRIVATE_KEY_JSON` or `GEE_PRIVATE_KEY_JSON_BASE64` as secret environment values.
 4. Ensure the service account is registered for Earth Engine and can use project `urbancool-mumbai-vk-2026`.
 5. Deploy and check `/health` before sharing the submission URL.
 

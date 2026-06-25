@@ -8,7 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from gee_service import analyze_area, build_report, get_tile_layer, initialize_earth_engine, list_areas
+from gee_service import (
+    analyze_area,
+    build_report,
+    earth_engine_config_status,
+    get_tile_layer,
+    initialize_earth_engine,
+    list_areas,
+)
 
 app = FastAPI(
     title="CoolGrid Urban API",
@@ -34,18 +41,20 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health(deep: bool = Query(False, description="Verify live Earth Engine connectivity")) -> dict[str, str]:
+def health(deep: bool = Query(False, description="Verify live Earth Engine connectivity")) -> dict:
+    config = earth_engine_config_status()
     if not deep:
         return {
             "status": "ok",
-            "earth_engine": "configured" if os.getenv("GEE_PROJECT") else "project-not-configured",
+            "earth_engine": "configured" if config["has_project"] else "project-not-configured",
+            "config": config,
         }
     try:
         initialize_earth_engine()
         gee = "ready"
     except RuntimeError as exc:
         gee = str(exc)
-    return {"status": "ok", "earth_engine": gee}
+    return {"status": "ok", "earth_engine": gee, "config": config}
 
 
 @app.get("/analyze")
